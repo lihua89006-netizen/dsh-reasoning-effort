@@ -23,6 +23,9 @@ interface InputDockEntryProps {
   input: unknown
 }
 
+/** Hard dependency: the client slot registry. */
+export const inject = ['slots']
+
 /** Apply the browser half: mount the effort control into the input dock. */
 export function apply(ctx: Context): void {
   try {
