@@ -1,16 +1,20 @@
 /**
- * Durable store for per-session reasoning-effort overrides. Lives under the
- * DSH storage area (`$DSH_HOME/storages/reasoning-effort.json`), written
+ * Durable store for model-level reasoning-effort memory. Lives under the DSH
+ * storage area (`$DSH_HOME/storages/reasoning-effort.json`), written
  * atomically (temp file + rename) through a serialized queue so concurrent
- * set/clear actions never interleave. A corrupt or missing file degrades to
- * an empty table — the store never throws into the request path.
+ * writes never interleave. A corrupt or missing file degrades to an empty
+ * table — the store never throws into the request path.
+ *
+ * Keys are model routes (`provider/model`), so a remembered effort applies to
+ * the same model in every session.
  */
 
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-const SCHEMA_VERSION = 1
+/** Bumped when the key semantics changed (v1 was per-session; v2 is per-model). */
+const SCHEMA_VERSION = 2
 
 /** On-disk shape; versioned so a future layout can migrate. */
 interface StoredShape {

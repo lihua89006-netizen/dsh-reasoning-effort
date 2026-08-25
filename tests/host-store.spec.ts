@@ -51,10 +51,10 @@ describe('createEffortStore', () => {
     mkdirSync(join(dir, 'storages'), { recursive: true })
     writeFileSync(
       join(dir, STORAGE_FILE),
-      JSON.stringify({ version: 1, overrides: { s1: 'high', s2: '', s3: 42, s4: 'low' } }),
+      JSON.stringify({ version: 2, overrides: { 'max-api/deepseek-x': 'high', s2: '', s3: 42, 'max-api/deepseek-y': 'low' } }),
       'utf8',
     )
-    expect(createEffortStore(dir).load()).toEqual(new Map([['s1', 'high'], ['s4', 'low']]))
+    expect(createEffortStore(dir).load()).toEqual(new Map([['max-api/deepseek-x', 'high'], ['max-api/deepseek-y', 'low']]))
     rmSync(dir, { recursive: true, force: true })
   })
 })

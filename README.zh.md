@@ -21,9 +21,10 @@ Web GUI 插件：让**任意** provider/model 路由——包括第三方 API �
   声明的 `deepseek*` 模型自动补上 `off/low/high/max`，新增第三方 DeepSeek 路由
   立即在官方选择器里获得可选等级。显式 `reasoningEfforts: false` 排除与已有声明
   绝不会被改动。
-- **按会话覆盖持久化** — 通过插件 API 应用的覆盖持久化到
-  `$DSH_HOME/storages/reasoning-effort.json`（原子写入），启动时恢复。官方选择器
-  自己的选择由 DSH 自身持久化。
+- **按模型记忆等级** — 在官方选择器里为任意第三方模型选一次等级，之后所有使用
+  该模型的会话都生效：插件在请求时捕获非默认的显式选择，并按模型路由记忆
+  （`$DSH_HOME/storages/reasoning-effort.json`，原子写入，启动恢复）。官方
+  DeepSeek 模型绝不捕获、绝不注入。
 
 ## 环境要求
 
@@ -61,7 +62,9 @@ node scripts/link-profile.mjs
 3. 在同一菜单的等级区选择推理等级。
 
 新增的 DeepSeek 源会在出现在 pi-ai 设置后的一分钟内被插件自动补声明；无需手动
-配置、无需重启。选择由 DSH 持久化，重启后保留。
+配置、无需重启。**你为某个模型选择的等级会按模型记住并全局生效**——换到使用同一
+模型的任何会话，等级都一致。清除记忆：`POST /api/reasoning-effort/action` 发送
+`{ "provider", "model", "effort": "" }`。
 
 ## 第三方模型（pi-ai）
 
@@ -110,12 +113,16 @@ models:
   - **自动补声明** — `llm-pi-ai` 设置中缺少 `reasoningEfforts` 声明的
     `deepseek*` 模型会被自动补上（启动 + 每分钟），这正是官方选择器能为这些
     路由提供等级的原因。
-  - **官方不干预** — `agent/request` waterfall 显式跳过 `deepseek-official`
-    路由，官方选择器的等级设置永远优先；无覆盖时其他路由也不做任何修改。
+  - **官方不干预 + 模型记忆** — `agent/request` waterfall 跳过
+    `deepseek-official` 路由，并在其他路由上把非默认的显式等级捕获为模型级记忆
+    （与 `llm.resolveModelInfo` 声明的适配器默认值比较），随后注入记忆等级——
+    一次选择对该模型的所有会话生效。
   - **覆盖 API**（可选，程序化使用）：
-    - `GET /api/reasoning-effort/state?sessionId=` — 会话覆盖与路由声明的等级。
-    - `POST /api/reasoning-effort/action` — 设置或清除（`effort: ''`）会话覆盖；
-      持久化到 `$DSH_HOME/storages/reasoning-effort.json`（原子写入）。
+    - `GET /api/reasoning-effort/state?sessionId=` — 会话所用模型的记忆等级与
+      路由声明的等级。
+    - `POST /api/reasoning-effort/action` — 设置或清除（`effort: ''`）某一模型
+      路由（`provider` + `model`）的记忆；持久化到
+      `$DSH_HOME/storages/reasoning-effort.json`（原子写入）。
 - **Browser 半区**（`src/client/`）设计上为空操作——不注册任何 chip 或槽位。
   专用控件的源码保留在仓库中并标注为停用。
 
@@ -126,8 +133,9 @@ models:
   打开选择器；否则手动添加声明（见上文）。
 - **选择等级后请求报错** — wire 值不被你的网关接受。检查该模型的
   `reasoningEfforts` 声明，把值调整为 API 方言。
-- **重启后覆盖未恢复** — 检查变更后是否存在
-  `~/.dsh/storages/reasoning-effort.json`；文件损坏会静默降级。
+- **其他会话未生效** — 记忆按模型路由（`provider/model`）匹配。确认模型 id
+  完全一致（含 provider），且该会话确实请求过该模型。损坏的
+  `~/.dsh/storages/reasoning-effort.json` 会静默降级。
 
 ## 开发
 

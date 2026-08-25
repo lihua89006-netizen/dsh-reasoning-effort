@@ -30,10 +30,12 @@ only place to pick a level.
   newly added third-party DeepSeek route immediately gets selectable efforts
   in the official selector. Explicit `reasoningEfforts: false` opt-outs and
   existing declarations are never touched.
-- **Per-session overrides** — overrides applied through the plugin's API are
-  durable (`$DSH_HOME/storages/reasoning-effort.json`, atomic write) and
-  restored on startup. The official selector's own selections are persisted by
-  DSH itself.
+- **Model-level effort memory** — pick a level once in the official selector
+  for any third-party model, and every session using that model gets it: the
+  plugin captures a non-default explicit choice at request time and remembers
+  it per model route (`$DSH_HOME/storages/reasoning-effort.json`, atomic
+  write, restored on startup). Official DeepSeek models are never captured or
+  injected.
 
 ## Requirements
 
@@ -75,8 +77,10 @@ you would for an official model:
 
 For newly added DeepSeek sources the plugin declares efforts automatically
 within a minute of the model appearing in the pi-ai settings; no manual
-configuration and no restart are needed. The selection is persisted by DSH
-and survives restarts.
+configuration and no restart are needed. **The level you pick for a model is
+remembered for that model everywhere** — switch to another session using the
+same model and the same level applies. To clear a memory, send
+`POST /api/reasoning-effort/action` with `{ "provider", "model", "effort": "" }`.
 
 ## Third-party models (pi-ai)
 
@@ -131,15 +135,17 @@ Official model selector (GUI)           Host half (DSH process)
     without a `reasoningEfforts` declaration get one declared automatically
     (startup + every minute), which is what makes the official selector able
     to offer efforts for those routes.
-  - **Official non-interference** — the `agent/request` waterfall explicitly
-    skips `deepseek-official` routes, so the official selector's effort
-    setting always wins; other routes are not modified either unless an
-    override exists.
+  - **Official non-interference + model memory** — the `agent/request`
+    waterfall skips `deepseek-official` routes, and captures a non-default
+    explicit effort on any other route as the model-level memory (compared
+    against the adapter-declared default via `llm.resolveModelInfo`), then
+    injects the remembered effort — so one choice applies to that model in
+    every session.
   - **Override API** (optional, for programmatic use):
-    - `GET /api/reasoning-effort/state?sessionId=` — the session's override
-      and the route's advertised efforts.
+    - `GET /api/reasoning-effort/state?sessionId=` — the session's model
+      memory and the route's advertised efforts.
     - `POST /api/reasoning-effort/action` — set or clear (`effort: ''`) the
-      session's override; persisted to
+      memory for one model route (`provider` + `model`); persisted to
       `$DSH_HOME/storages/reasoning-effort.json` (atomic write).
 - **Browser half** (`src/client/`) is a no-op by design — no chip, no extra
   slot registration. The source for a dedicated control remains in the repo,
@@ -154,9 +160,10 @@ Official model selector (GUI)           Host half (DSH process)
 - **Request errors after selecting an effort** — the wire value is not
   accepted by your gateway. Check the `reasoningEfforts` declaration for that
   model and adjust the values to the API's dialect.
-- **Override not restored after restart** — check that
-  `~/.dsh/storages/reasoning-effort.json` exists after a change; a corrupt
-  file degrades silently.
+- **Memory not applied in another session** — the memory is per model route
+  (`provider/model`). Verify the model id matches exactly (including the
+  provider), and that the session has actually requested that model. A corrupt
+  `~/.dsh/storages/reasoning-effort.json` degrades silently.
 
 ## Development
 

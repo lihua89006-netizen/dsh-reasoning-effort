@@ -1,9 +1,11 @@
 /**
- * Host-side state for the reasoning-effort plugin: per-session effort
- * overrides plus the most recent provider/model route per session (for the
- * control bar's available-efforts query). Overrides can be imported from and
- * exported to a durable store so a chosen level survives process restarts;
- * the route cache stays process-local by design.
+ * Host-side state for the reasoning-effort plugin: MODEL-level effort memory
+ * plus the most recent provider/model route per session (for the state
+ * query). A remembered effort applies to the same model in every session —
+ * the official selector's per-session choice is captured once (when it
+ * differs from the model default) and then reused everywhere. Overrides can
+ * be imported from and exported to a durable store so the memory survives
+ * process restarts; the route cache stays process-local by design.
  */
 
 import type { LlmCallConfig } from '@deepseek-ai/dsh-llm'
@@ -15,32 +17,48 @@ export interface ReasoningRoute {
   model: string
 }
 
-/** Owns the override table and the route cache; no I/O, fully unit-testable. */
+/** The memory key for one model route. */
+export function modelKey(provider: string, model: string): string {
+  return `${provider}/${model}`
+}
+
+/** Owns the model-level effort table and the session route cache; no I/O. */
 export class ReasoningEffortHostService {
   private readonly overrides = new Map<string, string>()
   private readonly routes = new Map<string, ReasoningRoute>()
 
-  /** Set or clear ('' / undefined) one session's override; returns the stored value. */
-  setEffort(sessionId: string, effort: string | undefined): string {
+  /** Set or clear ('' / undefined) one model's remembered effort; returns the stored value. */
+  setEffort(key: string, effort: string | undefined): string {
     if (effort === undefined || effort === '') {
-      this.overrides.delete(sessionId)
+      this.overrides.delete(key)
       return ''
     }
-    this.overrides.set(sessionId, effort)
+    this.overrides.set(key, effort)
     return effort
   }
 
-  /** Current override for one session; '' when unset. */
-  getEffort(sessionId: string): string {
-    return this.overrides.get(sessionId) ?? ''
+  /** Remember the effort for a model route (capture path); '' / undefined clears. */
+  rememberModelEffort(provider: string, model: string, effort: string | undefined): void {
+    this.setEffort(modelKey(provider, model), effort)
   }
 
-  /** Seed the override table from durable storage (startup). */
+  /** The remembered effort for one model route; '' when unset. */
+  getEffort(key: string): string {
+    return this.overrides.get(key) ?? ''
+  }
+
+  /** The remembered effort for the model of one session's most recent route. */
+  getEffortForSession(sessionId: string): string {
+    const route = this.routes.get(sessionId)
+    return route === undefined ? '' : this.overrides.get(modelKey(route.provider, route.model)) ?? ''
+  }
+
+  /** Seed the memory table from durable storage (startup). */
   importOverrides(overrides: ReadonlyMap<string, string>): void {
-    for (const [sessionId, effort] of overrides) this.overrides.set(sessionId, effort)
+    for (const [key, effort] of overrides) this.overrides.set(key, effort)
   }
 
-  /** Snapshot the whole override table for durable storage. */
+  /** Snapshot the whole memory table for durable storage. */
   allOverrides(): ReadonlyMap<string, string> {
     return new Map(this.overrides)
   }
@@ -56,11 +74,12 @@ export class ReasoningEffortHostService {
   }
 
   /**
-   * Record the request's route and inject the session's override. This is the
-   * single entry point the agent/request waterfall calls.
+   * Record the request's route and inject the model-level remembered effort.
+   * Official DeepSeek routes are skipped inside `injectEffort`, so the
+   * official selector's own setting stays authoritative there.
    */
   applyRequestConfig(config: LlmCallConfig, sessionId: string): LlmCallConfig {
     this.recordRoute(sessionId, { provider: config.provider, model: config.model })
-    return injectEffort(config, this.overrides.get(sessionId))
+    return injectEffort(config, this.overrides.get(modelKey(config.provider, config.model)))
   }
 }

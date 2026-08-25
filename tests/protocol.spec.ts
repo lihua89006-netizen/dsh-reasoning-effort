@@ -17,20 +17,22 @@ describe('parseSessionId', () => {
 
 describe('parseEffortAction', () => {
   it('parses a set action', () => {
-    expect(parseEffortAction({ sessionId: 's1', effort: 'high' }))
-      .toEqual({ sessionId: 's1', effort: 'high' })
+    expect(parseEffortAction({ provider: 'max-api', model: 'deepseek-x', effort: 'high' }))
+      .toEqual({ provider: 'max-api', model: 'deepseek-x', effort: 'high' })
   })
 
   it('treats a missing effort as clear', () => {
-    expect(parseEffortAction({ sessionId: 's1' })).toEqual({ sessionId: 's1', effort: '' })
+    expect(parseEffortAction({ provider: 'max-api', model: 'deepseek-x' }))
+      .toEqual({ provider: 'max-api', model: 'deepseek-x', effort: '' })
   })
 
-  it('rejects non-object, missing session id, and non-string effort', () => {
+  it('rejects non-object, missing route, and non-string effort', () => {
     expect(parseEffortAction(null)).toBeUndefined()
     expect(parseEffortAction('x')).toBeUndefined()
     expect(parseEffortAction({ effort: 'high' })).toBeUndefined()
-    expect(parseEffortAction({ sessionId: '', effort: 'high' })).toBeUndefined()
-    expect(parseEffortAction({ sessionId: 's1', effort: 7 })).toBeUndefined()
+    expect(parseEffortAction({ provider: '', model: 'deepseek-x', effort: 'high' })).toBeUndefined()
+    expect(parseEffortAction({ provider: 'max-api', model: '', effort: 'high' })).toBeUndefined()
+    expect(parseEffortAction({ provider: 'max-api', model: 'deepseek-x', effort: 7 })).toBeUndefined()
   })
 })
 

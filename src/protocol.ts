@@ -41,9 +41,10 @@ export interface ReasoningEffortState {
   defaultEffort: string
 }
 
-/** Action payload: set (non-empty effort) or clear (empty string) one session's override. */
+/** Action payload: set (non-empty effort) or clear (empty string) one model's remembered effort. */
 export interface ReasoningEffortAction {
-  sessionId: string
+  provider: string
+  model: string
   effort: string
 }
 
@@ -64,9 +65,10 @@ export function parseSessionId(value: unknown): string | undefined {
 export function parseEffortAction(value: unknown): ReasoningEffortAction | undefined {
   const row = record(value)
   if (row === undefined) return undefined
-  const sessionId = parseSessionId(row.sessionId)
-  if (sessionId === undefined) return undefined
+  const provider = typeof row.provider === 'string' && row.provider.trim() !== '' ? row.provider : undefined
+  const model = typeof row.model === 'string' && row.model.trim() !== '' ? row.model : undefined
+  if (provider === undefined || model === undefined) return undefined
   const effort = row.effort
   if (effort !== undefined && typeof effort !== 'string') return undefined
-  return { sessionId, effort: effort ?? '' }
+  return { provider, model, effort: effort ?? '' }
 }

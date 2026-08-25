@@ -84,23 +84,31 @@ describe('normalizeEffort', () => {
 })
 
 describe('ReasoningEffortHostService', () => {
-  it('stores and clears per-session overrides independently', () => {
+  it('stores and clears model-level memories independently', () => {
     const host = new ReasoningEffortHostService()
-    expect(host.setEffort('s1', 'high')).toBe('high')
-    expect(host.setEffort('s2', 'low')).toBe('low')
-    expect(host.getEffort('s1')).toBe('high')
-    expect(host.getEffort('s2')).toBe('low')
-    expect(host.setEffort('s1', '')).toBe('')
-    expect(host.getEffort('s1')).toBe('')
-    expect(host.getEffort('s2')).toBe('low')
+    expect(host.setEffort('max-api/deepseek-x', 'high')).toBe('high')
+    expect(host.setEffort('max-api/deepseek-y', 'low')).toBe('low')
+    expect(host.getEffort('max-api/deepseek-x')).toBe('high')
+    expect(host.getEffort('max-api/deepseek-y')).toBe('low')
+    expect(host.setEffort('max-api/deepseek-x', '')).toBe('')
+    expect(host.getEffort('max-api/deepseek-x')).toBe('')
+    expect(host.getEffort('max-api/deepseek-y')).toBe('low')
   })
 
-  it('imports persisted overrides and snapshots the table for storage', () => {
+  it('remembers model efforts by route and clears on empty', () => {
     const host = new ReasoningEffortHostService()
-    host.importOverrides(new Map([['s1', 'max'], ['s2', 'low']]))
-    expect(host.getEffort('s1')).toBe('max')
-    host.setEffort('s2', '')
-    expect(host.allOverrides()).toEqual(new Map([['s1', 'max']]))
+    host.rememberModelEffort('max-api', 'deepseek-x', 'max')
+    expect(host.getEffort('max-api/deepseek-x')).toBe('max')
+    host.rememberModelEffort('max-api', 'deepseek-x', '')
+    expect(host.getEffort('max-api/deepseek-x')).toBe('')
+  })
+
+  it('imports persisted memories and snapshots the table for storage', () => {
+    const host = new ReasoningEffortHostService()
+    host.importOverrides(new Map([['max-api/deepseek-x', 'max'], ['max-api/deepseek-y', 'low']]))
+    expect(host.getEffort('max-api/deepseek-x')).toBe('max')
+    host.setEffort('max-api/deepseek-y', '')
+    expect(host.allOverrides()).toEqual(new Map([['max-api/deepseek-x', 'max']]))
   })
 
   it('records the route of the most recent request', () => {
@@ -110,14 +118,31 @@ describe('ReasoningEffortHostService', () => {
     expect(host.getRoute('s1')).toEqual({ provider: 'p', model: 'm' })
   })
 
-  it('injects the override into the request config', () => {
+  it('injects the model-level memory into requests of the same model in any session', () => {
     const host = new ReasoningEffortHostService()
-    host.setEffort('s1', 'max')
+    host.setEffort('route-a/model-x', 'max')
+    // Session s1 and s2 both use the same model: both get the memory.
     expect(host.applyRequestConfig(config({ reasoningEffort: effort('low') }), 's1'))
       .toEqual(config({ provider: 'route-a', model: 'model-x', reasoningEffort: effort('max') }))
+    expect(host.applyRequestConfig(config({ reasoningEffort: effort('low') }), 's2').reasoningEffort)
+      .toBe(effort('max'))
   })
 
-  it('leaves the config alone without an override', () => {
+  it('resolves the remembered effort for a session via its route', () => {
+    const host = new ReasoningEffortHostService()
+    host.applyRequestConfig(config({ provider: 'p', model: 'm' }), 's1')
+    expect(host.getEffortForSession('s1')).toBe('')
+    host.setEffort('p/m', 'high')
+    expect(host.getEffortForSession('s1')).toBe('high')
+  })
+
+  it('does not inject a memory for a different model', () => {
+    const host = new ReasoningEffortHostService()
+    host.setEffort('route-a/other-model', 'max')
+    expect(host.applyRequestConfig(config(), 's1')).toEqual(config())
+  })
+
+  it('leaves the config alone without a memory', () => {
     const host = new ReasoningEffortHostService()
     expect(host.applyRequestConfig(config(), 's1')).toEqual(config())
     expect(host.applyRequestConfig(config({ reasoningEffort: effort('low') }), 's1').reasoningEffort)

@@ -10,7 +10,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import { isOfficialRoute } from './core/controller.ts'
-import type { ReasoningEffortHostService } from './host-controller.ts'
+import { modelKey, type ReasoningEffortHostService } from './host-controller.ts'
 import {
   parseEffortAction,
   parseSessionId,
@@ -85,7 +85,7 @@ export function makeReasoningEffortRoutes(
         }
       }
       const state: ReasoningEffortState = {
-        effort: host.getEffort(sessionId),
+        effort: host.getEffortForSession(sessionId),
         provider: route?.provider ?? null,
         model: route?.model ?? null,
         isOfficial: route !== undefined && isOfficialRoute(route.provider),
@@ -109,7 +109,10 @@ export function makeReasoningEffortRoutes(
         const body = await readBody(req, ACTION_LIMIT)
         const parsed = parseEffortAction(body)
         if (parsed === undefined) return writeJson(res, 400, { ok: false, error: 'invalid-action' })
-        const effort = host.setEffort(parsed.sessionId, parsed.effort === '' ? undefined : parsed.effort)
+        const effort = host.setEffort(
+          modelKey(parsed.provider, parsed.model),
+          parsed.effort === '' ? undefined : parsed.effort,
+        )
         options.onOverrideChanged?.(host.allOverrides())
         writeJson(res, 200, { ok: true, effort })
       } catch (error) {

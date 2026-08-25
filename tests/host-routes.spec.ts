@@ -79,14 +79,14 @@ describe('state route', () => {
     expect(out.status()).toBe(403)
   })
 
-  it('reports override changes to the persistence callback', async () => {
+  it('reports model-level memory changes to the persistence callback', async () => {
     const host = new ReasoningEffortHostService()
     const seen: Array<ReadonlyMap<string, string>> = []
     const [, actionRoute] = makeReasoningEffortRoutes(host, {
       async resolveAvailable() { return { options: [], defaultEffort: '' } },
     }, { onOverrideChanged: (overrides) => { seen.push(new Map(overrides)) } })
     const out = fakeRes()
-    const body = JSON.stringify({ sessionId: 's1', effort: 'high' })
+    const body = JSON.stringify({ provider: 'max-api', model: 'deepseek-x', effort: 'high' })
     const req = {
       method: 'POST',
       url: '/api/reasoning-effort/action',
@@ -96,6 +96,6 @@ describe('state route', () => {
     await actionRoute.handler(req, out.res)
     expect(out.status()).toBe(200)
     expect(seen).toHaveLength(1)
-    expect(seen[0]).toEqual(new Map([['s1', 'high']]))
+    expect(seen[0]).toEqual(new Map([['max-api/deepseek-x', 'high']]))
   })
 })
