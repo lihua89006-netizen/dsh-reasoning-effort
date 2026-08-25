@@ -207,4 +207,4 @@ Source layout:
 
 ## License
 
-[Apache-2.0](LICENSE) © Zimu233L
+[GPL-3.0](LICENSE) © Zimu233L
