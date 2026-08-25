@@ -12,8 +12,7 @@
 - 结构约定：`src/index.ts` 是 host 半区（waterfall + 路由注册）；`src/client/` 是
   browser 半区（EffortBar 控件、CSS Modules、zh/en 字典）；`src/core/controller.ts`
   与 `src/protocol.ts` 是两侧共享的纯逻辑/线协议（client bundle 内联安全）。
-  `build/` 是自包含的 tsdown client 预设（复制自 dsh-web shared/tsdown.client.ts，
-  随本包维护，不反向依赖 dsh-web 仓库）。
+  `build/` 是项目自包含的 tsdown client 构建预设，随本包维护，不依赖任何外部仓库。
 - 等级覆盖按会话存于 Host 进程内存，插件生命周期内有效；不持久化。设置
   「默认」即清除覆盖。
 - 可用等级列表经 `llm.resolveModelInfo` 按会话最近路由解析；解析失败降级为空列表，
