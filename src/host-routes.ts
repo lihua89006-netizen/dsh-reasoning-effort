@@ -27,6 +27,11 @@ export interface ReasoningEffortResolvers {
   resolveAvailable(provider: string, model: string): Promise<{ options: ReasoningEffortOption[]; defaultEffort: string }>
 }
 
+/** Route options: a change callback for durable persistence of the override table. */
+export interface ReasoningEffortRouteOptions {
+  onOverrideChanged?: (overrides: ReadonlyMap<string, string>) => void
+}
+
 function writeJson(res: ServerResponse, status: number, body: unknown, extra: Record<string, string> = {}): void {
   const payload = JSON.stringify(body)
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', ...extra, ...CACHE_CONTROL })
@@ -56,6 +61,7 @@ async function readBody(req: IncomingMessage, limit: number): Promise<unknown> {
 export function makeReasoningEffortRoutes(
   host: ReasoningEffortHostService,
   resolvers: ReasoningEffortResolvers,
+  options: ReasoningEffortRouteOptions = {},
 ): WebRoute[] {
   const state: WebRoute = {
     kind: 'exact',
@@ -104,6 +110,7 @@ export function makeReasoningEffortRoutes(
         const parsed = parseEffortAction(body)
         if (parsed === undefined) return writeJson(res, 400, { ok: false, error: 'invalid-action' })
         const effort = host.setEffort(parsed.sessionId, parsed.effort === '' ? undefined : parsed.effort)
+        options.onOverrideChanged?.(host.allOverrides())
         writeJson(res, 200, { ok: true, effort })
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)

@@ -1,9 +1,9 @@
 /**
  * Host-side state for the reasoning-effort plugin: per-session effort
  * overrides plus the most recent provider/model route per session (for the
- * control bar's available-efforts query). Process-local by design — the
- * override lives for the plugin's lifetime and applies to every agent request
- * of that session.
+ * control bar's available-efforts query). Overrides can be imported from and
+ * exported to a durable store so a chosen level survives process restarts;
+ * the route cache stays process-local by design.
  */
 
 import type { LlmCallConfig } from '@deepseek-ai/dsh-llm'
@@ -33,6 +33,16 @@ export class ReasoningEffortHostService {
   /** Current override for one session; '' when unset. */
   getEffort(sessionId: string): string {
     return this.overrides.get(sessionId) ?? ''
+  }
+
+  /** Seed the override table from durable storage (startup). */
+  importOverrides(overrides: ReadonlyMap<string, string>): void {
+    for (const [sessionId, effort] of overrides) this.overrides.set(sessionId, effort)
+  }
+
+  /** Snapshot the whole override table for durable storage. */
+  allOverrides(): ReadonlyMap<string, string> {
+    return new Map(this.overrides)
   }
 
   /** Remember the route of the session's most recent model request. */

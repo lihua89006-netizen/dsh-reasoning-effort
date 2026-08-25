@@ -27,6 +27,7 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 import { ReasoningEffortHostService } from './host-controller.ts'
 import { PROVISION_INTERVAL_MS, provisionDeepseekEfforts } from './host-provisioner.ts'
 import { makeReasoningEffortRoutes } from './host-routes.ts'
+import { createEffortStore } from './host-store.ts'
 import type { ReasoningEffortOption } from './protocol.ts'
 
 /** Hard dependency: the browser route carrier. */
@@ -35,6 +36,11 @@ export const inject = ['webServer']
 /** Apply the host half: register the request override and the HTTP routes. */
 export function apply(ctx: Context): void {
   const host = new ReasoningEffortHostService()
+
+  // Durable overrides: a chosen level survives restarts. Loaded once at
+  // startup; every set/clear through the action route persists the table.
+  const store = createEffortStore()
+  host.importOverrides(store.load())
 
   // Waterfall around every streaming model call of every agent. The override
   // is applied unconditionally after next(), so its value wins regardless of
@@ -74,7 +80,9 @@ export function apply(ctx: Context): void {
       },
     }
     try {
-      for (const route of makeReasoningEffortRoutes(host, resolvers)) {
+      for (const route of makeReasoningEffortRoutes(host, resolvers, {
+        onOverrideChanged: (overrides) => store.save(overrides),
+      })) {
         disposers.push(ctx.webServer.register(route))
       }
     } catch (error) {

@@ -95,6 +95,14 @@ describe('ReasoningEffortHostService', () => {
     expect(host.getEffort('s2')).toBe('low')
   })
 
+  it('imports persisted overrides and snapshots the table for storage', () => {
+    const host = new ReasoningEffortHostService()
+    host.importOverrides(new Map([['s1', 'max'], ['s2', 'low']]))
+    expect(host.getEffort('s1')).toBe('max')
+    host.setEffort('s2', '')
+    expect(host.allOverrides()).toEqual(new Map([['s1', 'max']]))
+  })
+
   it('records the route of the most recent request', () => {
     const host = new ReasoningEffortHostService()
     expect(host.getRoute('s1')).toBeUndefined()

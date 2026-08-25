@@ -21,11 +21,18 @@ any, and a "default" entry that clears the override.
   validates the value against its capability table before any network I/O;
   setting an effort a model does not support surfaces as the adapter's own
   error.
-- **Browser half** renders the control bar and talks to the Host half over two
+- **Browser half** renders the control chip and talks to the Host half over two
   same-origin routes (`/api/reasoning-effort/state`,
-  `/api/reasoning-effort/action`). The effort per session lives in Host
-  process memory for the plugin's lifetime; it is not persisted and applies to
+  `/api/reasoning-effort/action`). Per-session overrides are durable: they are
+  persisted to `$DSH_HOME/storages/reasoning-effort.json` (atomic write) and
+  restored on startup, so a chosen level survives restarts and applies to
   every agent request of that session.
+- **Auto-provisioning** scans the llm-pi-ai settings section at startup and
+  every minute: any DeepSeek-compatible model (id starting with `deepseek`)
+  without a `reasoningEfforts` declaration gets one declared automatically
+  (off/low/high/max), so newly added third-party DeepSeek sources are usable
+  without manual configuration. Explicit `reasoningEfforts: false` opt-outs
+  and existing declarations are never touched.
 
 ## Install
 

@@ -17,8 +17,13 @@ provider/model 路由——包括第三方 API 模型——无需改动任何 DS
   模型完全一致。适配器仍会在任何网络 I/O 之前按能力表校验该值；设置模型不支持的
   等级会以适配器自身的报错呈现。
 - **Browser 半区**渲染控制条，并通过两条同源路由（`/api/reasoning-effort/state`、
-  `/api/reasoning-effort/action`）与 Host 半区通信。每个会话的等级存于 Host 进程
-  内存，插件生命周期内有效；不持久化，对该会话的每次 agent 请求生效。
+  `/api/reasoning-effort/action`）与 Host 半区通信。每个会话的等级**持久化**到
+  `$DSH_HOME/storages/reasoning-effort.json`（原子写入），启动时恢复——重启后
+  记忆保留，对该会话的每次 agent 请求生效。
+- **自动补声明**：启动时与每分钟扫描 llm-pi-ai 设置：任何 id 以 `deepseek`
+  开头且没有 `reasoningEfforts` 声明的模型会被自动补上 off/low/high/max，
+  以后新增的第三方 deepseek 源无需手动配置即可选等级。显式的
+  `reasoningEfforts: false` 排除与已有声明绝不会被改动。
 
 ## 安装
 

@@ -78,4 +78,24 @@ describe('state route', () => {
     await stateRoute.handler(req, out.res)
     expect(out.status()).toBe(403)
   })
+
+  it('reports override changes to the persistence callback', async () => {
+    const host = new ReasoningEffortHostService()
+    const seen: Array<ReadonlyMap<string, string>> = []
+    const [, actionRoute] = makeReasoningEffortRoutes(host, {
+      async resolveAvailable() { return { options: [], defaultEffort: '' } },
+    }, { onOverrideChanged: (overrides) => { seen.push(new Map(overrides)) } })
+    const out = fakeRes()
+    const body = JSON.stringify({ sessionId: 's1', effort: 'high' })
+    const req = {
+      method: 'POST',
+      url: '/api/reasoning-effort/action',
+      headers: { origin: 'http://127.0.0.1:3080', 'sec-fetch-site': 'same-origin', 'content-type': 'application/json' },
+      [Symbol.asyncIterator]: async function* () { yield Buffer.from(body) },
+    } as unknown as IncomingMessage
+    await actionRoute.handler(req, out.res)
+    expect(out.status()).toBe(200)
+    expect(seen).toHaveLength(1)
+    expect(seen[0]).toEqual(new Map([['s1', 'high']]))
+  })
 })
