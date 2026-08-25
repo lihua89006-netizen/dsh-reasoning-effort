@@ -1,0 +1,7 @@
+# bundle patch for the reasoning-effort plugin: inserts its plugin row into the
+# web profile roster. Applied as a user patch layer (the profile's
+# cordis.patch.yml) after the bundle layers; link the package into the shared
+# profile layer first (see README.md "Install").
+- insert:
+    - id: ui-reasoning-effort
+      name: '@zimu233l/dsh-client-ui-reasoning-effort'
