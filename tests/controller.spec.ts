@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { injectEffort, normalizeEffort } from '../src/core/controller.ts'
+import { injectEffort, isOfficialRoute, normalizeEffort } from '../src/core/controller.ts'
 import { ReasoningEffortHostService } from '../src/host-controller.ts'
 import { ReasoningEffortId, type LlmCallConfig } from '@deepseek-ai/dsh-llm'
+import { OFFICIAL_PROVIDER_ROUTE } from '../src/protocol.ts'
 
 function config(overrides: Partial<LlmCallConfig> = {}): LlmCallConfig {
   return { provider: 'route-a', model: 'model-x', ...overrides }
@@ -11,11 +12,26 @@ function effort(value: string): LlmCallConfig['reasoningEffort'] {
   return ReasoningEffortId(value)
 }
 
+describe('isOfficialRoute', () => {
+  it('recognizes the official DeepSeek route and nothing else', () => {
+    expect(isOfficialRoute(OFFICIAL_PROVIDER_ROUTE)).toBe(true)
+    expect(isOfficialRoute('deepseek-official')).toBe(true)
+    expect(isOfficialRoute('my-gateway')).toBe(false)
+    expect(isOfficialRoute('deepseek-other')).toBe(false)
+  })
+})
+
 describe('injectEffort', () => {
   it('returns the config untouched when there is no override', () => {
     const base = config()
     expect(injectEffort(base, undefined)).toBe(base)
     expect(injectEffort(base, '')).toBe(base)
+  })
+
+  it('never touches official DeepSeek routes, even with an override', () => {
+    const base = config({ provider: OFFICIAL_PROVIDER_ROUTE, reasoningEffort: effort('high') })
+    expect(injectEffort(base, 'max')).toBe(base)
+    expect(injectEffort(base, undefined)).toBe(base)
   })
 
   it('injects the override into a config without an effort', () => {

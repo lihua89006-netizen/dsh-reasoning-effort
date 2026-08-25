@@ -9,6 +9,7 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
+import { isOfficialRoute } from './core/controller.ts'
 import type { ReasoningEffortHostService } from './host-controller.ts'
 import {
   parseEffortAction,
@@ -81,6 +82,7 @@ export function makeReasoningEffortRoutes(
         effort: host.getEffort(sessionId),
         provider: route?.provider ?? null,
         model: route?.model ?? null,
+        isOfficial: route !== undefined && isOfficialRoute(route.provider),
         available,
         defaultEffort,
       }

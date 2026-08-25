@@ -7,6 +7,14 @@
 
 export const REASONING_EFFORT_API_PREFIX = '/api/reasoning-effort'
 
+/**
+ * The official DeepSeek provider route (dsh-llm-deepseek adapter). The plugin
+ * stays out of the way for official models: the control bar hides and the
+ * host override is never injected for this route, so the official model
+ * selector keeps its own effort setting untouched.
+ */
+export const OFFICIAL_PROVIDER_ROUTE = 'deepseek-official'
+
 /** One adapter-owned reasoning effort offered for an exact provider/model route. */
 export interface ReasoningEffortOption {
   /** Opaque value submitted back to the owning adapter. */
@@ -25,6 +33,8 @@ export interface ReasoningEffortState {
   provider: string | null
   /** Model id of the session's most recent model request. */
   model: string | null
+  /** Whether the route is the official DeepSeek route (control hidden, no injection). */
+  isOfficial: boolean
   /** Efforts the model route advertises, in adapter-preferred order. */
   available: ReasoningEffortOption[]
   /** Adapter-configured default effort, when one exists. */
