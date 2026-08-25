@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { injectEffort, isOfficialRoute, normalizeEffort } from '../src/core/controller.ts'
+import { shouldShowChip } from '../src/core/visibility.ts'
 import { ReasoningEffortHostService } from '../src/host-controller.ts'
 import { ReasoningEffortId, type LlmCallConfig } from '@deepseek-ai/dsh-llm'
-import { OFFICIAL_PROVIDER_ROUTE } from '../src/protocol.ts'
+import { OFFICIAL_PROVIDER_ROUTE, type ReasoningEffortState } from '../src/protocol.ts'
 
 function config(overrides: Partial<LlmCallConfig> = {}): LlmCallConfig {
   return { provider: 'route-a', model: 'model-x', ...overrides }
@@ -10,6 +11,18 @@ function config(overrides: Partial<LlmCallConfig> = {}): LlmCallConfig {
 
 function effort(value: string): LlmCallConfig['reasoningEffort'] {
   return ReasoningEffortId(value)
+}
+
+function chipState(overrides: Partial<ReasoningEffortState> = {}): ReasoningEffortState {
+  return {
+    effort: '',
+    provider: 'max-api',
+    model: 'deepseek-x',
+    isOfficial: false,
+    available: [{ id: 'high', name: 'High' }],
+    defaultEffort: '',
+    ...overrides,
+  }
 }
 
 describe('isOfficialRoute', () => {
@@ -101,5 +114,23 @@ describe('ReasoningEffortHostService', () => {
     expect(host.applyRequestConfig(config(), 's1')).toEqual(config())
     expect(host.applyRequestConfig(config({ reasoningEffort: effort('low') }), 's1').reasoningEffort)
       .toBe(effort('low'))
+  })
+})
+
+describe('shouldShowChip', () => {
+  it('shows for a known third-party route with selectable efforts', () => {
+    expect(shouldShowChip(chipState())).toBe(true)
+  })
+
+  it('hides before the route is known', () => {
+    expect(shouldShowChip(chipState({ provider: null, model: null }))).toBe(false)
+  })
+
+  it('hides for official routes', () => {
+    expect(shouldShowChip(chipState({ isOfficial: true }))).toBe(false)
+  })
+
+  it('hides for routes without selectable efforts (no reasoningEfforts declaration)', () => {
+    expect(shouldShowChip(chipState({ available: [] }))).toBe(false)
   })
 })

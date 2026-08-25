@@ -6,10 +6,11 @@
  * option rows with a trailing check).
  *
  * Visibility: the chip renders only once the session's route is known (first
- * model request) and only for non-official routes — official DeepSeek models
- * keep the official selector's own effort setting untouched, so the chip and
- * the host override stay hidden for them. State is polled so switching models
- * updates visibility and the effort list live.
+ * model request), only for non-official routes, and only when the route
+ * advertises at least one effort — official DeepSeek models keep the official
+ * selector's own effort setting untouched, and models without a
+ * `reasoningEfforts` declaration hide the chip entirely. State is polled so
+ * switching models updates visibility and the effort list live.
  */
 
 import {
@@ -17,6 +18,7 @@ import {
   type ChangeEvent, type FocusEvent, type KeyboardEvent, type ReactElement,
 } from 'react'
 import { IconChevronDownOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { shouldShowChip } from '../core/visibility.ts'
 import type { ReasoningEffortState } from '../protocol.ts'
 import { fetchState, setEffort } from './host-api.ts'
 import { dictFor, translate } from './locales.ts'
@@ -71,8 +73,9 @@ export function EffortBar(props: EffortBarProps): ReactElement | null {
     return () => { document.removeEventListener('mousedown', closeOutside) }
   }, [open])
 
-  // Hidden until the route is known, and hidden for official routes.
-  if (state === null || state.provider === null || state.isOfficial) return null
+  // Hidden until the route is known, for official routes, and for routes that
+  // advertise no selectable efforts (no reasoningEfforts declaration).
+  if (state === null || !shouldShowChip(state)) return null
   if (error !== null) return null
 
   const effortLabel = state.effort === ''

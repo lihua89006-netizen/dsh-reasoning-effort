@@ -20,5 +20,6 @@ export default clientBundle('@zimu233l/dsh-client-ui-reasoning-effort', ['src/in
     '@deepseek-ai/dsh-client-ui-slots',
     '@deepseek-ai/dsh-host-webserver',
     '@deepseek-ai/dsh-llm',
+    '@deepseek-ai/dsh-settings',
   ],
 })
