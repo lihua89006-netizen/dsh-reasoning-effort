@@ -3,49 +3,33 @@
 [English](README.md) | 中文
 
 Zimu233L 开发的独立 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai)
-Web GUI 插件：为**任意** provider/model 路由——包括第三方 API 模型——提供按会话的
-**推理等级**（`reasoning_effort`）调节，无需改动任何 DSH 源码。
+Web GUI 插件：让**任意** provider/model 路由——包括第三方 API 模型——在**官方模型
+选择器**里可选推理等级（`reasoning_effort`），无需改动任何 DSH 源码。
 
 官方模型选择器只提供适配器声明的推理等级，因此第三方路由（pi-ai 网关、自定义
-适配器）在 GUI 里没有等级控制。本插件用官方同款样式的 composer 控件补齐这个
-缺口，同时对官方 DeepSeek 模型完全保持不干预。
+适配器）在 GUI 里没有等级控制。本插件在数据层解决这个问题：对官方 DeepSeek
+模型完全保持不干预，并自动为第三方 DeepSeek 路由声明等级，让官方选择器能提供
+它们。**不渲染任何额外 UI**——官方模型选择器是选择等级的唯一入口。
 
 ## 功能特性
 
-- **官方同款 UI** — composer 工具行内的 28px 胶囊 chip（与官方模型选择器同一套
-  视觉语言：hover 填充、caption 色值、chevron 图标），下拉菜单复刻官方 Menu
-  原语（表面 token、38px 选项行、尾部勾选）。
-- **支持第三方模型** — 可选等级直接来自适配器（`llm.resolveModelInfo`）；自由
-  文本输入让你为未声明等级的路由输入任意值。
-- **绝不干预官方模型** — `deepseek-official` 路由完全隐藏 chip、绝不注入，官方
-  选择器自身的等级设置保持权威。
-- **无可选等级即隐藏** — 未声明 `reasoningEfforts` 的路由（以及首次请求前的未知
-  路由）不渲染任何控件，不会出现空菜单。
+- **零额外 UI** — 不向 GUI 添加任何控件；等级选择完全在官方模型选择器
+  （`conversation.input.model`）里进行，它像官方模型一样展示模型声明的等级。
+- **绝不干预官方模型** — `deepseek-official` 路由绝不注入；官方选择器自身的
+  等级设置保持权威。
 - **新 DeepSeek 源自动补声明** — 启动时与每分钟扫描 `llm-pi-ai` 设置，为任何缺少
   声明的 `deepseek*` 模型自动补上 `off/low/high/max`，新增第三方 DeepSeek 路由
-  无需手动配置即可使用。显式 `reasoningEfforts: false` 排除与已有声明绝不会被
-  改动。
-- **按会话持久化** — 你选择的等级跨 DSH 重启保留（持久化到
-  `$DSH_HOME/storages/reasoning-effort.json`，原子写入）。
-- **实时更新** — 3 秒轮询让 chip 显隐与等级列表跟随会话当前模型变化。
-- **国际化** — 完整的中文/英文文案，按文档语言自动选择。
-
-## 界面形态
-
-composer 工具行左端的小胶囊，与官方 Plan / 权限控件同排：
-
-```
-[推理等级 默认（不覆盖） ▾]
-```
-
-点击展开菜单卡片：模型声明的等级（当前项带勾选）、清除覆盖的「默认（不覆盖）」，
-以及底部用于输入任意等级值的自定义输入行。
+  立即在官方选择器里获得可选等级。显式 `reasoningEfforts: false` 排除与已有声明
+  绝不会被改动。
+- **按会话覆盖持久化** — 通过插件 API 应用的覆盖持久化到
+  `$DSH_HOME/storages/reasoning-effort.json`（原子写入），启动时恢复。官方选择器
+  自己的选择由 DSH 自身持久化。
 
 ## 环境要求
 
 - DSH `>= 0.1.1-rc.1`（声明于包 `engines`）
 - 已配置 DSH **web** profile（`~/.dsh/profiles/web/`，即常规 `dsh web` 环境）
-- Windows / macOS / Linux 均可（安装脚本自动选择 junction 或符号链接）
+- Windows / macOS / Linux 均可
 
 ## 安装
 
@@ -70,25 +54,14 @@ node scripts/link-profile.mjs
 
 ## 使用说明
 
-### chip 何时出现
+安装并重启 DSH 后，像官方模型一样选等级即可：
 
-| 会话模型 | chip |
-| --- | --- |
-| 官方 `deepseek-official` 路由 | 隐藏（官方设置不受影响） |
-| 已声明等级的第三方路由 | 首次模型请求后出现 |
-| 未声明等级的第三方路由 | 隐藏（无可选等级） |
-| 尚无路由 | 隐藏 |
+1. 打开 composer 工具行里的模型选择器。
+2. 选择你的第三方模型（例如 pi-ai provider 下的 `deepseek*` 路由）。
+3. 在同一菜单的等级区选择推理等级。
 
-### 选择等级
-
-1. 点击 composer 工具行内的 chip。
-2. 选择等级——当前项带勾选。菜单关闭后，覆盖对该会话的每次模型请求生效。
-3. 「默认（不覆盖）」清除覆盖，恢复模型/适配器默认行为。
-4. **自定义输入** — 输入任意值（如 `low`、`medium`、`high`）后回车或点「应用」。
-   用于未声明等级的路由；适配器仍会在任何网络 I/O 前校验该值，不支持的取值会以
-   适配器自身的报错呈现。
-
-覆盖按会话隔离，且跨重启持久保留。
+新增的 DeepSeek 源会在出现在 pi-ai 设置后的一分钟内被插件自动补声明；无需手动
+配置、无需重启。选择由 DSH 持久化，重启后保留。
 
 ## 第三方模型（pi-ai）
 
@@ -117,43 +90,42 @@ models:
 ## 工作原理
 
 ```
-浏览器半区（composer chip）        Host 半区（DSH 进程）
+官方模型选择器（GUI）                  Host 半区（DSH 进程）
 ┌─────────────────────────────┐      ┌──────────────────────────────────┐
-│ conversation.input.left     │      │ agent/request waterfall          │
-│  chip + 菜单卡片             │      │  注入 LlmCallConfig.reasoning   │
-│      │                      │      │  Effort（官方路由跳过）          │
-│      │ 同源 JSON             │      │                                  │
-│      └─ /api/reasoning-     │      │ 按会话覆盖表                     │
-│         effort/state        ├─────►│  ├─ 启动时加载                   │
-│         /action             │      │  └─ 变更时持久化                 │
-│      ▲                      │      │                                  │
-│      └─ 3 秒轮询             │      │ 自动补声明：                    │
-└─────────────────────────────┘      │  缺少 reasoningEfforts 的        │
-                                     │  deepseek* 模型自动声明           │
-                                     │  （启动 + 每分钟）                │
+│ 模型 + 等级选择              │      │ 自动补声明：                    │
+│ （只渲染适配器声明的等级）    │      │  缺少 reasoningEfforts 的        │
+│      │                      │      │  deepseek* 模型自动声明           │
+│      │ session.selectModel  │      │  （启动 + 每分钟）                │
+│      ▼                      │      │                                  │
+│ 会话保存 provider/model/    │      │ agent/request waterfall          │
+│ reasoningEffort（DSH 持久化）├─────►│  官方路由跳过，其他路由在无覆盖 │
+└─────────────────────────────┘      │  时保持会话选择的等级不变         │
+                                     │                                  │
+                                     │ /api/reasoning-effort/state|action│
+                                     │  （覆盖 API，持久化存储）          │
                                      └──────────────────────────────────┘
 ```
 
-- **Host 半区**（`src/index.ts`）监听 `agent/request` waterfall——与官方模型
-  选择器同一条通道——在 `next()` 之后把会话覆盖注入冻结的 `LlmCallConfig`，因此
-  无论监听器顺序如何该值都生效。官方 DeepSeek 路由直接跳过。两条同源路由服务
-  浏览器：
-  - `GET /api/reasoning-effort/state?sessionId=` — 覆盖值、当前路由、官方标记、
-    模型声明的等级列表（经 `llm.resolveModelInfo`）。
-  - `POST /api/reasoning-effort/action` — 设置或清除（`effort: ''`）会话覆盖。
-- **Browser 半区**（`src/client/`）在加性的 `conversation.input.left` list 槽位
-  注册一个条目，每 3 秒轮询状态。
-- **持久化** — `$DSH_HOME/storages/reasoning-effort.json`
-  （`{ version, overrides: { sessionId: effort } }`），临时文件 + rename 原子
-  写入、串行队列；损坏文件静默降级为空表。
+- **Host 半区**（`src/index.ts`）承担三件事：
+  - **自动补声明** — `llm-pi-ai` 设置中缺少 `reasoningEfforts` 声明的
+    `deepseek*` 模型会被自动补上（启动 + 每分钟），这正是官方选择器能为这些
+    路由提供等级的原因。
+  - **官方不干预** — `agent/request` waterfall 显式跳过 `deepseek-official`
+    路由，官方选择器的等级设置永远优先；无覆盖时其他路由也不做任何修改。
+  - **覆盖 API**（可选，程序化使用）：
+    - `GET /api/reasoning-effort/state?sessionId=` — 会话覆盖与路由声明的等级。
+    - `POST /api/reasoning-effort/action` — 设置或清除（`effort: ''`）会话覆盖；
+      持久化到 `$DSH_HOME/storages/reasoning-effort.json`（原子写入）。
+- **Browser 半区**（`src/client/`）设计上为空操作——不注册任何 chip 或槽位。
+  专用控件的源码保留在仓库中并标注为停用。
 
 ## 故障排查
 
-- **chip 不出现** — 会话路由未知（先发起一次请求）、是官方 `deepseek-official`
-  路由、或模型没有 `reasoningEfforts` 声明（补一个，或让自动补声明处理
-  `deepseek*` 模型）。
+- **官方选择器里第三方模型没有等级选项** — 模型缺少 `reasoningEfforts` 声明。
+  若模型 id 以 `deepseek` 开头，等待最多一分钟让自动补声明生效（或重启），再
+  打开选择器；否则手动添加声明（见上文）。
 - **选择等级后请求报错** — wire 值不被你的网关接受。检查该模型的
-  `reasoningEfforts` 声明，把值调整为 API 方言（或用自定义输入）。
+  `reasoningEfforts` 声明，把值调整为 API 方言。
 - **重启后覆盖未恢复** — 检查变更后是否存在
   `~/.dsh/storages/reasoning-effort.json`；文件损坏会静默降级。
 
@@ -168,12 +140,11 @@ pnpm build
 
 源码布局：
 
-- `src/index.ts` — host 半区入口（waterfall、路由、自动补声明、持久化）
-- `src/host-*.ts` — host 控制器、路由、自动补声明驱动、持久化存储
-- `src/client/` — 浏览器半区：`EffortBar.tsx`（chip + 菜单）、CSS Modules、
-  中英文案
-- `src/core/` + `src/protocol.ts` — 两侧共享的纯逻辑（注入决策、补声明补丁、
-  chip 显隐、线协议）
+- `src/index.ts` — host 半区入口（自动补声明、waterfall 守卫、路由、存储）
+- `src/host-*.ts` — 自动补声明驱动、路由、持久化存储
+- `src/client/` — 停用的浏览器半区（空 apply；专用控件源码留作参考）
+- `src/core/` + `src/protocol.ts` — 两侧共享的纯逻辑（补声明补丁、注入决策、
+  线协议）
 - `build/` — 自包含 tsdown client 构建预设（不依赖任何外部仓库）
 - `tests/` — 单元测试
 
