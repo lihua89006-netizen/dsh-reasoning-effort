@@ -49,10 +49,29 @@ Restart the DSH service for the new row to load.
 - "Default (no override)" removes the session's override; the model or adapter
   default applies again.
 - The available list is resolved from `llm.resolveModelInfo` for the session's
-  most recent route, so third-party models that declare no efforts show only
-  the custom entry.
+  most recent route. Official DeepSeek models (`deepseek-official`) hide the
+  chip entirely and are never injected — their own effort setting stays
+  authoritative. The chip appears only for third-party routes after their
+  first model request.
+- Third-party pi-ai routes need an explicit `reasoningEfforts` declaration per
+  model to offer levels (the pi-ai adapter rejects undeclared efforts). Add it
+  to the model entry in your settings (the pi-ai section), e.g. for a
+  DeepSeek-compatible route:
+
+  ```yaml
+  models:
+    - id: deepseek-v4-flash-0731
+      reasoningEfforts:
+        off:
+        low: low
+        high: high
+        max: max
+  ```
+
+  The change applies live (no restart). Models without a declaration show only
+  the free-text custom entry.
 - Stopping or removing the plugin removes the waterfall listener, the routes,
-  and the control bar; overrides vanish with it.
+  and the control chip; overrides vanish with it.
 
 ## Development
 

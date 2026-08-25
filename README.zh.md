@@ -42,7 +42,29 @@ node scripts/link-profile.mjs   # 把本包链接到 ~/.dsh/profiles/node_module
 - 「默认（不覆盖）」清除该会话的覆盖，恢复模型/适配器默认行为。
 - 可选列表通过 `llm.resolveModelInfo` 按会话最近一次请求的路由解析；未声明等级的
   第三方模型只显示自定义输入项。
-- 停止或卸载插件会移除 waterfall 监听、路由与控制条，覆盖随之消失。
+## 行为说明
+
+- 覆盖按会话隔离：不同会话可以设置不同等级。
+- 「默认（不覆盖）」清除该会话的覆盖，恢复模型/适配器默认行为。
+- 可选列表通过 `llm.resolveModelInfo` 按会话最近一次请求的路由解析。官方
+  DeepSeek 模型（`deepseek-official`）完全不显示 chip、也绝不注入——官方自身的
+  等级设置保持权威。chip 仅在第三方路由首次模型请求后出现。
+- 第三方 pi-ai 路由需要为每个模型显式声明 `reasoningEfforts` 才会提供等级
+  （pi-ai 适配器拒绝未声明的等级）。在设置的 pi-ai 段给模型条目加上，例如
+  DeepSeek 兼容路由：
+
+  ```yaml
+  models:
+    - id: deepseek-v4-flash-0731
+      reasoningEfforts:
+        off:
+        low: low
+        high: high
+        max: max
+  ```
+
+  改动即时生效（无需重启）。未声明的模型只显示自定义输入项。
+- 停止或卸载插件会移除 waterfall 监听、路由与 chip，覆盖随之消失。
 
 ## 开发
 
