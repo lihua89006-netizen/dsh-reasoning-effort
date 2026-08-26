@@ -36,6 +36,12 @@ only place to pick a level.
   it per model route (`$DSH_HOME/storages/reasoning-effort.json`, atomic
   write, restored on startup). Official DeepSeek models are never captured or
   injected.
+- **Display stays truthful** — the official selector submits model switches
+  without an effort, which would show "Default" after switching to a
+  third-party model even though the remembered level still runs. An invisible
+  per-session sync writes the remembered effort back into the session's picked
+  selection through the official `session.selectModel`, so the selector shows
+  the remembered level immediately — no extra UI.
 
 ## Requirements
 
@@ -79,7 +85,12 @@ For newly added DeepSeek sources the plugin declares efforts automatically
 within a minute of the model appearing in the pi-ai settings; no manual
 configuration and no restart are needed. **The level you pick for a model is
 remembered for that model everywhere** — switch to another session using the
-same model and the same level applies. To clear a memory, send
+same model and the same level applies. The official selector submits a switch
+to a third-party model without an effort, so it would show "Default" right
+after switching; an invisible per-session sync (a rendered-nothing
+`conversation.input.dock` entry) writes the remembered level back through
+`session.selectModel`, so the selector shows the remembered level again as
+soon as you switch back — even in a different session. To clear a memory, send
 `POST /api/reasoning-effort/action` with `{ "provider", "model", "effort": "" }`.
 
 ## Third-party models (pi-ai)
@@ -147,9 +158,16 @@ Official model selector (GUI)           Host half (DSH process)
     - `POST /api/reasoning-effort/action` — set or clear (`effort: ''`) the
       memory for one model route (`provider` + `model`); persisted to
       `$DSH_HOME/storages/reasoning-effort.json` (atomic write).
-- **Browser half** (`src/client/`) is a no-op by design — no chip, no extra
-  slot registration. The source for a dedicated control remains in the repo,
-  commented as disabled.
+    - `GET /api/reasoning-effort/lookup?provider=&model=` — the remembered
+      level for one model route (used by the browser-half display sync).
+- **Browser half** (`src/client/`) renders no visible UI by design — no chip,
+  no extra controls. It registers a single invisible
+  `conversation.input.dock` entry (`src/client/effort-sync.tsx`) that watches
+  the official per-session model directory and, when the picked selection is a
+  non-official model without an effort, looks up the remembered level via the
+  lookup route and writes it back with `session.selectModel` — that is what
+  makes the official selector show the remembered level right after switching
+  models or sessions.
 
 ## Troubleshooting
 
@@ -170,7 +188,7 @@ Official model selector (GUI)           Host half (DSH process)
 ```sh
 pnpm install
 pnpm typecheck
-pnpm test      # 41 unit tests
+pnpm test      # 54 unit tests
 pnpm build
 ```
 
@@ -178,8 +196,9 @@ Source layout:
 
 - `src/index.ts` — host half entry (provisioning, waterfall guard, routes, store)
 - `src/host-*.ts` — provisioning driver, routes, durable store
-- `src/client/` — disabled browser half (no-op apply; control UI kept for
-  reference)
+- `src/client/` — invisible display sync (renders nothing): watches the
+  official per-session model directory and re-applies remembered efforts via
+  `session.selectModel`
 - `src/core/` + `src/protocol.ts` — shared pure logic (provisioning patch,
   injection decision, wire contract)
 - `build/` — self-contained tsdown client preset (no external repo dependency)

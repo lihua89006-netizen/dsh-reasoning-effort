@@ -1,10 +1,11 @@
 /**
- * Same-origin HTTP routes the browser half talks to: state query and the
- * set/clear action. The fence is deliberately lightweight (browser same-origin
- * marker): the operations only mutate an in-memory per-session override for a
- * session id the caller must know, so a cross-site request cannot target a
- * session it does not know. Loopback + Host + origin-equality checks would be
- * overkill for this data plane.
+ * Same-origin HTTP routes the browser half talks to: the state query, a cheap
+ * effort lookup by exact route, and the set/clear action. The fence is
+ * deliberately lightweight (browser same-origin marker): the operations only
+ * read or mutate an in-memory model-level override for a route/session the
+ * caller must know, so a cross-site request cannot target a session it does
+ * not know. Loopback + Host + origin-equality checks would be overkill for
+ * this data plane.
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -96,6 +97,22 @@ export function makeReasoningEffortRoutes(
     },
   }
 
+  const lookup: WebRoute = {
+    kind: 'exact',
+    path: `${REASONING_EFFORT_API_PREFIX}/lookup`,
+    handler: async (req, res): Promise<void> => {
+      if (req.method !== 'GET') return writeJson(res, 405, { ok: false, error: 'method-not-allowed' })
+      if (!browserSameOriginRequest(req)) return writeJson(res, 403, { ok: false, error: 'forbidden' })
+      const url = new URL(req.url ?? '/', 'http://localhost')
+      const provider = parseSessionId(url.searchParams.get('provider'))
+      const model = parseSessionId(url.searchParams.get('model'))
+      if (provider === undefined || model === undefined) {
+        return writeJson(res, 400, { ok: false, error: 'invalid-route' })
+      }
+      writeJson(res, 200, { effort: host.getEffort(modelKey(provider, model)) })
+    },
+  }
+
   const action: WebRoute = {
     kind: 'exact',
     path: `${REASONING_EFFORT_API_PREFIX}/action`,
@@ -122,5 +139,5 @@ export function makeReasoningEffortRoutes(
     },
   }
 
-  return [state, action]
+  return [state, lookup, action]
 }

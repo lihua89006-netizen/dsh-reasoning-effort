@@ -25,6 +25,10 @@ Web GUI 插件：让**任意** provider/model 路由——包括第三方 API �
   该模型的会话都生效：插件在请求时捕获非默认的显式选择，并按模型路由记忆
   （`$DSH_HOME/storages/reasoning-effort.json`，原子写入，启动恢复）。官方
   DeepSeek 模型绝不捕获、绝不注入。
+- **显示与记忆一致** — 官方选择器切换模型时不携带等级，切到第三方模型后通常会
+  显示「Default」，尽管记忆的等级仍在实际请求中生效。一个不可见的逐会话同步
+  会把记忆等级经官方 `session.selectModel` 写回会话的当前选择，让选择器立即显示
+  记住的等级——切走再切回、换会话都一样。无需任何额外 UI。
 
 ## 环境要求
 
@@ -63,8 +67,11 @@ node scripts/link-profile.mjs
 
 新增的 DeepSeek 源会在出现在 pi-ai 设置后的一分钟内被插件自动补声明；无需手动
 配置、无需重启。**你为某个模型选择的等级会按模型记住并全局生效**——换到使用同一
-模型的任何会话，等级都一致。清除记忆：`POST /api/reasoning-effort/action` 发送
-`{ "provider", "model", "effort": "" }`。
+模型的任何会话，等级都一致。官方选择器切换模型时不携带等级，因此切到第三方模型
+后选择器会短暂显示「Default」；一个不可见的逐会话同步（不渲染任何内容的
+`conversation.input.dock` 条目）会经 `session.selectModel` 把记住的等级写回，
+让你切走再切回（哪怕换会话）都能立即看到记住的等级。清除记忆：`POST
+/api/reasoning-effort/action` 发送 `{ "provider", "model", "effort": "" }`。
 
 ## 第三方模型（pi-ai）
 
@@ -123,8 +130,13 @@ models:
     - `POST /api/reasoning-effort/action` — 设置或清除（`effort: ''`）某一模型
       路由（`provider` + `model`）的记忆；持久化到
       `$DSH_HOME/storages/reasoning-effort.json`（原子写入）。
-- **Browser 半区**（`src/client/`）设计上为空操作——不注册任何 chip 或槽位。
-  专用控件的源码保留在仓库中并标注为停用。
+    - `GET /api/reasoning-effort/lookup?provider=&model=` — 某一模型路由记住的
+      等级（供浏览器半区的显示同步使用）。
+- **Browser 半区**（`src/client/`）设计上不渲染任何可见 UI——没有 chip、没有额外
+  控件。它只注册一个不可见的 `conversation.input.dock` 条目
+  （`src/client/effort-sync.tsx`）：订阅官方逐会话模型目录，当当前选择是非官方
+  模型且未带等级时，经 lookup 路由查到记住的等级，再用 `session.selectModel`
+  写回——这就是选择器在切换模型或会话后立即显示记住等级的原因。
 
 ## 故障排查
 
@@ -142,7 +154,7 @@ models:
 ```sh
 pnpm install
 pnpm typecheck
-pnpm test      # 41 个单元测试
+pnpm test      # 54 个单元测试
 pnpm build
 ```
 
@@ -150,7 +162,8 @@ pnpm build
 
 - `src/index.ts` — host 半区入口（自动补声明、waterfall 守卫、路由、存储）
 - `src/host-*.ts` — 自动补声明驱动、路由、持久化存储
-- `src/client/` — 停用的浏览器半区（空 apply；专用控件源码留作参考）
+- `src/client/` — 不可见的显示同步（不渲染任何内容）：订阅官方逐会话模型目录，
+  经 `session.selectModel` 把记住的等级写回当前选择
 - `src/core/` + `src/protocol.ts` — 两侧共享的纯逻辑（补声明补丁、注入决策、
   线协议）
 - `build/` — 自包含 tsdown client 构建预设（不依赖任何外部仓库）

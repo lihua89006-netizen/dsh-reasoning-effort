@@ -48,6 +48,12 @@ export interface ReasoningEffortAction {
   effort: string
 }
 
+/** Lookup response: the remembered effort for one exact provider/model route. */
+export interface ReasoningEffortLookup {
+  /** Remembered effort; '' when the route has none. */
+  effort: string
+}
+
 function record(value: unknown): Record<string, unknown> | undefined {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? value as Record<string, unknown>

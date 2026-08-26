@@ -82,7 +82,7 @@ describe('state route', () => {
   it('reports model-level memory changes to the persistence callback', async () => {
     const host = new ReasoningEffortHostService()
     const seen: Array<ReadonlyMap<string, string>> = []
-    const [, actionRoute] = makeReasoningEffortRoutes(host, {
+    const [, , actionRoute] = makeReasoningEffortRoutes(host, {
       async resolveAvailable() { return { options: [], defaultEffort: '' } },
     }, { onOverrideChanged: (overrides) => { seen.push(new Map(overrides)) } })
     const out = fakeRes()
@@ -97,5 +97,67 @@ describe('state route', () => {
     expect(out.status()).toBe(200)
     expect(seen).toHaveLength(1)
     expect(seen[0]).toEqual(new Map([['max-api/deepseek-x', 'high']]))
+  })
+})
+
+describe('lookup route', () => {
+  /** Drive one GET lookup and return { status, body }. */
+  async function lookupFor(url: string, setup?: (host: ReasoningEffortHostService) => void): Promise<{ status: number; body: unknown }> {
+    const host = new ReasoningEffortHostService()
+    setup?.(host)
+    const [, lookupRoute] = makeReasoningEffortRoutes(host, {
+      async resolveAvailable() { return { options: [], defaultEffort: '' } },
+    })
+    const out = fakeRes()
+    await lookupRoute.handler(fakeReq('GET', url), out.res)
+    return { status: out.status(), body: out.body() }
+  }
+
+  it('returns the remembered effort for an exact route', async () => {
+    const { status, body } = await lookupFor(
+      '/api/reasoning-effort/lookup?provider=max-api&model=deepseek-x',
+      (host) => { host.rememberModelEffort('max-api', 'deepseek-x', 'max') },
+    )
+    expect(status).toBe(200)
+    expect(body).toEqual({ effort: 'max' })
+  })
+
+  it('returns an empty effort for a route without memory', async () => {
+    const { status, body } = await lookupFor('/api/reasoning-effort/lookup?provider=max-api&model=deepseek-y')
+    expect(status).toBe(200)
+    expect(body).toEqual({ effort: '' })
+  })
+
+  it('rejects requests without provider or model', async () => {
+    const missingModel = await lookupFor('/api/reasoning-effort/lookup?provider=max-api')
+    expect(missingModel.status).toBe(400)
+    const missingProvider = await lookupFor('/api/reasoning-effort/lookup?model=deepseek-x')
+    expect(missingProvider.status).toBe(400)
+  })
+
+  it('rejects non-GET methods', async () => {
+    const host = new ReasoningEffortHostService()
+    const [, lookupRoute] = makeReasoningEffortRoutes(host, {
+      async resolveAvailable() { return { options: [], defaultEffort: '' } },
+    })
+    const out = fakeRes()
+    await lookupRoute.handler(fakeReq('POST', '/api/reasoning-effort/lookup?provider=max-api&model=deepseek-x'), out.res)
+    expect(out.status()).toBe(405)
+  })
+
+  it('rejects requests without a browser same-origin marker', async () => {
+    const host = new ReasoningEffortHostService()
+    host.rememberModelEffort('max-api', 'deepseek-x', 'max')
+    const [, lookupRoute] = makeReasoningEffortRoutes(host, {
+      async resolveAvailable() { return { options: [], defaultEffort: '' } },
+    })
+    const out = fakeRes()
+    const req = {
+      method: 'GET',
+      url: '/api/reasoning-effort/lookup?provider=max-api&model=deepseek-x',
+      headers: { 'sec-fetch-site': 'cross-site' },
+    } as unknown as IncomingMessage
+    await lookupRoute.handler(req, out.res)
+    expect(out.status()).toBe(403)
   })
 })

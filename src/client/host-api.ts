@@ -21,6 +21,17 @@ export async function fetchState(sessionId: string): Promise<ReasoningEffortStat
   )
 }
 
+/** Read the remembered effort for one exact route ('' when the model has none). */
+export async function lookupEffort(provider: string, model: string): Promise<string> {
+  const body = await readJson<{ effort: string }>(
+    await fetch(
+      `${REASONING_EFFORT_API_PREFIX}/lookup?provider=${encodeURIComponent(provider)}&model=${encodeURIComponent(model)}`,
+      { cache: 'no-store' },
+    ),
+  )
+  return body.effort
+}
+
 /** Set (non-empty) or clear (empty) the session's override. */
 export async function setEffort(sessionId: string, effort: string): Promise<void> {
   await readJson<{ ok: boolean }>(
